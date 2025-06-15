@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Best Ball Rankings Builder</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="rankControls.css" />
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      font-weight: 400;
+      line-height: 1.6;
+    }
+    h1, h2, h3, h4, h5, h6, th {
+      font-weight: 700;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 12px;
+      line-height: 1.4;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    #rankings-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+    tbody tr:nth-child(even) {
+      background-color: #fafafa;
+    }
+    tbody tr:hover {
+      background-color: #f5f5f5;
+    }
+    .sentiment-cell {
+      position: relative;
+    }
+    .sentiment-cell::before {
+      content: '';
+      position: absolute;
+      top: 4px;
+      bottom: 4px;
+      left: 0;
+      width: var(--width, 0%);
+      background-color: #d0eaff;
+      border-radius: 4px;
+      z-index: 0;
+    }
+    .sentiment-cell span {
+      position: relative;
+      z-index: 1;
+    }
+    .team-logo {
+      width: 30px;
+      height: 30px;
+      object-fit: contain;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+      .rating-column,
+      .rating-cell {
+        position: relative;
+        border-radius: 4px;
+        border: none;
+      }
+    .rating-column {
+      background-color: #ffecc0;
+    }
+    .rating-cell {
+      background-color: #fff9e6;
+      font-weight: 700;
+    }
+    .sortable {
+      cursor: pointer;
+      position: relative;
+    }
+    .sortable::after {
+      content: '\2195';
+      font-size: 0.8em;
+      margin-left: 4px;
+    }
+    .sortable.sorted-asc::after {
+      content: '\2191';
+    }
+    .sortable.sorted-desc::after {
+      content: '\2193';
+    }
+    #top-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: flex-start;
+      background: #fff;
+      padding: 1rem;
+      border-bottom: 1px solid #ddd;
+    }
+    #page-title {
+      margin: 0;
+      padding-top: 0.5rem;
+      font-size: 3rem;
+      font-weight: 700;
+      text-align: left;
+      color: #2a3f5c; /* Fallback color */
+      background: linear-gradient(90deg, #2a3f5c, #184040);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-fill-color: transparent;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+    #title-container {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-left: auto;
+    }
+    #weight-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      max-width: 400px;
+    }
+    #weight-controls > div {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    #weight-controls label {
+      min-width: 110px;
+      text-align: right;
+    }
+    #weight-controls input[type="range"] {
+      flex: 1;
+      -webkit-appearance: none;
+      height: 8px;
+      border-radius: 4px;
+      background: #e0e0e0;
+      outline: none;
+    }
+    #weight-controls input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #1e90ff;
+      cursor: pointer;
+      margin-top: -8px;
+    }
+    #weight-controls input[type="range"]::-moz-range-thumb {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #1e90ff;
+      cursor: pointer;
+    }
+    .upload-option {
+      border: 2px dashed #1e90ff;
+      border-radius: 4px;
+      text-align: center;
+      margin: 0.25rem;
+    }
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal.show {
+      display: flex;
+    }
+    .modal-content {
+      background: #fff;
+      padding: 1rem;
+      border-radius: 8px;
+      max-width: 400px;
+      width: 90%;
+      text-align: center;
+    }
+    }
+    .drop-zone {
+      border: 2px dashed #1e90ff;
+      padding: 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-bottom: 1rem;
+    }
+    .drop-zone input {
+      display: none;
+    }
+    .upload-error {
+      color: red;
+      margin-bottom: 0.5rem;
+    }
+    .upload-success {
+      color: green;
+      margin-bottom: 0.5rem;
+    }
+    .unmatched-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .unmatched-item input {
+      flex: 1;
+    }
+    .loading-msg {
+      text-align: center;
+      margin-bottom: 1rem;
+      opacity: 0;
+      animation: fadeIn 0.5s forwards;
+      display: none;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .skeleton-row .skeleton-block {
+      height: 1em;
+      background: #e0e0e0;
+      border-radius: 4px;
+      position: relative;
+      overflow: hidden;
+    }
+    .skeleton-row .skeleton-block::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, rgba(224,224,224,0) 0%, rgba(255,255,255,0.6) 50%, rgba(224,224,224,0) 100%);
+      animation: shimmer 1.5s infinite;
+    }
+    @keyframes shimmer {
+      from { left: -100%; }
+      to { left: 100%; }
+    }
+    .info-note {
+      text-align: center;
+      font-size: 0.9rem;
+      color: #555;
+      margin-top: -0.5rem;
+      margin-bottom: 1rem;
+    }
+    @media (max-width: 640px) {
+      #top-controls {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .controls {
+        flex-direction: column;
+        align-items: stretch;
+      }
+    }
+  </style>
+</head>
+<body>
+  <svg style="display:none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><symbol id="icon-download" viewBox="0 0 16 16"><path d="M8 1v9m0 0l-3-3m3 3l3-3M1 14h14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol></svg>
+  <script src="config.js"></script>
+  <header id="top-controls">
+    <div id="title-container">
+      <button type="button" class="btn btn-primary" id="rateMyTeamBtn" aria-label="Rate my fantasy teams">Rate My Teams</button>
+      <h1 id="page-title">Best Ball Rankings Builder</h1>
+    </div>
+    <div class="controls">
+      <div id="weight-controls">
+        <div>
+          <label for="weight-wmonighe" id="rank-label">Rankings</label>
+          <input type="range" id="weight-wmonighe" min="0" max="100" value="35" />
+          <span id="weight-wmonighe-val">35%</span>
+        </div>
+        <div>
+          <label for="weight-adp">ADP</label>
+          <input type="range" id="weight-adp" min="0" max="100" value="35" />
+          <span id="weight-adp-val">35%</span>
+        </div>
+        <div>
+          <label for="weight-fp">Fantasy Points</label>
+          <input type="range" id="weight-fp" min="0" max="100" value="10" />
+          <span id="weight-fp-val">10%</span>
+        </div>
+        <div>
+          <label for="weight-sentiment">Sentiment</label>
+          <input type="range" id="weight-sentiment" min="0" max="100" value="5" />
+          <span id="weight-sentiment-val">5%</span>
+        </div>
+        <div>
+          <label for="weight-vorp">Futures Props</label>
+          <input type="range" id="weight-vorp" min="0" max="100" value="15" />
+          <span id="weight-vorp-val">15%</span>
+        </div>
+      </div>
+        <aside class="rank-controls">
+          <header class="rank-set">
+            <label for="rankSet" class="rank-label">Active Ranking Set</label>
+            <select id="rankSet" name="rankSet" class="rank-select">
+              <option value="wmonighe" selected>wmonighe</option>
+              <option value="upload">Upload Rankings</option>
+            </select>
+          </header>
+
+          <div class="action-bar">
+            <button type="button" class="btn btn-secondary" id="updateBtn">Update</button>
+            <button type="button" class="btn btn-primary" id="exportBtn">
+              <img
+                class="icon"
+                src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRltuDZN3yIMK1sh9oDF7ykc7HYDeuCGoZ--g&s"
+                alt="Export icon"
+              />
+              Export
+            </button>
+            <button type="button" class="btn btn-ghost" id="resetBtn">Reset</button>
+          </div>
+        </aside>
+    </div>
+  </header>
+  <p class="info-note">Values in parentheses indicate percentile rank.</p>
+  <div id="loading-message" class="loading-msg">Loading player rankings…</div>
+  <table id="rankings-table">
+    <thead></thead>
+    <tbody></tbody>
+  </table>
+  <div id="upload-modal" class="modal">
+    <div class="modal-content">
+      <h3>Upload Custom Rankings</h3>
+      <div id="drop-zone" class="drop-zone">
+        Drag and drop your CSV file or click to upload
+        <input type="file" id="upload-input" accept=".csv" />
+      </div>
+      <div id="upload-feedback"></div>
+      <button id="close-upload" class="btn btn-outline">Close</button>
+    </div>
+  </div>
+  <div id="unmatched-modal" class="modal">
+    <div class="modal-content">
+      <h3>Match Unrecognized Players</h3>
+      <div id="unmatched-list"></div>
+      <div class="button-row">
+        <button id="map-all" class="btn">Map All</button>
+        <button id="close-unmatched" class="btn btn-outline">Close</button>
+      </div>
+    </div>
+  </div>
+  <datalist id="players-datalist"></datalist>
+  <script>
+    const sheetId = '1rNouBdE-HbWafu-shO_5JLPSrLhr-xuGpXYfyOI-2oY';
+    const rankingsUrl = `https://opensheet.elk.sh/${sheetId}/Rankings`;
+    const sentimentUrl = `https://opensheet.elk.sh/${sheetId}/Sentiment`;
+
+
+
+    const weightInputs = {
+      wmonighe: document.getElementById('weight-wmonighe'),
+      adp: document.getElementById('weight-adp'),
+      fp: document.getElementById('weight-fp'),
+      sentiment: document.getElementById('weight-sentiment'),
+      vorp: document.getElementById('weight-vorp'),
+    };
+
+    function updateWeightDisplay(key) {
+      const el = document.getElementById(`weight-${key}-val`);
+      if (el && weightInputs[key]) {
+        el.textContent = `${weightInputs[key].value}%`;
+      }
+    }
+
+    const prevWeights = {};
+    let lastChangedKey;
+
+    let validateTimeout;
+
+    function scheduleValidation() {
+      clearTimeout(validateTimeout);
+      validateTimeout = setTimeout(validateWeights, 1000);
+    }
+
+    function validateWeights() {
+      const total = Object.keys(weightInputs).reduce(
+        (sum, k) => sum + (parseInt(weightInputs[k].value, 10) || 0),
+        0
+      );
+
+      if (total > 100 && lastChangedKey) {
+        alert('Total percentage cannot exceed 100%.');
+        const available = 100 - Object.keys(weightInputs).reduce((sum, k) => {
+          return sum + (k === lastChangedKey ? 0 : (parseInt(weightInputs[k].value, 10) || 0));
+        }, 0);
+        weightInputs[lastChangedKey].value = Math.max(0, available);
+        updateWeightDisplay(lastChangedKey);
+      }
+
+      Object.keys(weightInputs).forEach(k => {
+        prevWeights[k] = parseInt(weightInputs[k].value, 10) || 0;
+      });
+    }
+
+    function handleWeightInput(key) {
+      lastChangedKey = key;
+      updateWeightDisplay(key);
+      scheduleValidation();
+    }
+
+    Object.keys(weightInputs).forEach(k => {
+      prevWeights[k] = parseInt(weightInputs[k].value, 10) || 0;
+      weightInputs[k].addEventListener('input', () => handleWeightInput(k));
+      updateWeightDisplay(k);
+    });
+
+    const columns = [
+      {
+        header: '#',
+        cell: (r, i) => `<td>${i + 1}</td>`,
+      },
+      {
+        header: '⭐ Rating',
+        thClass: 'rating-column',
+        cell: r => `<td class="rating-cell">${r.rating || ''}</td>`,
+        sortKey: 'rating',
+      },
+      {
+        header: '👤 Player',
+        cell: r => `<td>${r.playerHtml}</td>`,
+      },
+      {
+        header: '🏅 <span id="rankings-source">wmonighe</span> Rankings',
+        cell: r =>
+          `<td>${r.wmonigheRank}${r.wmonighePct ? ' (' + r.wmonighePct + ')' : ''}</td>`,
+        sortKey: 'wmonigheRank',
+      },
+      {
+        header: '📊 ADP',
+        cell: r => {
+          let text = `${r.adp}${r.adpPct ? ' (' + r.adpPct + ')' : ''}`;
+          if (
+            r.adp === 'Undrafted' ||
+            text === '#N/A (#N/A)' ||
+            text === '- (#VALUE!)'
+          ) {
+            text = 'Undrafted';
+          }
+          return `<td>${text}</td>`;
+        },
+        sortKey: 'adp',
+      },
+      {
+        header: '🏆 Fantasy Points',
+        cell: r => {
+          const pctText = r.fpPctDisplay || r.fpPct;
+          return `<td>${r.fantasyPts}${pctText ? ' (' + pctText + ')' : ''}</td>`;
+        },
+        sortKey: 'fantasyPts',
+      },
+      {
+        header: '😊 Sentiment',
+        cell: r =>
+          `<td class="sentiment-cell" style="--width:${r.sentimentPercent}%"><span>${r.sentiment}${r.sentimentPct ? ' (' + r.sentimentPct + ')' : ''}</span></td>`,
+        sortKey: 'sentimentValue',
+      },
+      {
+        header: '🎲 Futures Props',
+        cell: r =>
+          `<td>${r.vorp}${r.vorpPct ? ' (' + r.vorpPct + ')' : ''}</td>`,
+        sortKey: 'vorp',
+      },
+    ];
+
+    function canonicalName(name) {
+      return (name || '')
+        .toString()
+        .toLowerCase()
+        .replace(/[.'’]/g, '')
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim();
+    }
+
+    function canonicalField(name) {
+      return (name || '').toString().toLowerCase().replace(/[^a-z0-9]/g, '');
+    }
+
+    function getFantasyPoints(row) {
+      if (row.I || row['Fantasy Points'] || row['FantasyPts']) {
+        return row.I || row['Fantasy Points'] || row['FantasyPts'];
+      }
+      const key = Object.keys(row).find(k => {
+        const ck = canonicalField(k);
+        return ck.includes('fantasypoints') || ck.includes('fantasypts');
+      });
+      return key ? row[key] : '';
+    }
+
+    function getColumn(row, letter, labelPart) {
+      if (row[letter]) return row[letter];
+      const target = canonicalField(labelPart);
+      const key = Object.keys(row).find(k =>
+        canonicalField(k).includes(target)
+      );
+      return key ? row[key] : '';
+    }
+
+
+    let allRows = [];
+    let sortState = { key: null, asc: true };
+    let displayRows = [];
+    let customRanks = null;
+    let customNames = {};
+
+    function computeRatings() {
+      const weights = {
+        wmonighe: parseFloat(weightInputs.wmonighe.value) / 100,
+        adp: parseFloat(weightInputs.adp.value) / 100,
+        fp: parseFloat(weightInputs.fp.value) / 100,
+        sentiment: parseFloat(weightInputs.sentiment.value) / 100,
+        vorp: parseFloat(weightInputs.vorp.value) / 100,
+      };
+      allRows.forEach(r => {
+        const items = [
+          { v: parseFloat(r.wmonighePct), w: weights.wmonighe },
+          { v: parseFloat(r.adpPct), w: weights.adp },
+          { v: parseFloat(r.fpPctValue !== undefined ? r.fpPctValue : r.fpPct), w: weights.fp },
+          { v: parseFloat(r.sentimentPct), w: weights.sentiment },
+          { v: parseFloat(r.vorpPct), w: weights.vorp },
+        ].filter(i => !isNaN(i.v) && i.w > 0);
+        const totalWeight = items.reduce((a, b) => a + b.w, 0);
+        if (items.length && totalWeight > 0) {
+          const sum = items.reduce((s, i) => s + i.v * i.w, 0);
+          r.rating = (sum / totalWeight).toFixed(2);
+        } else {
+          r.rating = '';
+        }
+      });
+    }
+
+    function updateRankingsSource(name) {
+      const span = document.getElementById('rankings-source');
+      if (span) span.textContent = name;
+      const disp = document.getElementById('rankings-source-name');
+      if (disp) disp.textContent = name;
+      const label = document.getElementById('rank-label');
+      if (label) label.textContent = 'Rankings';
+    }
+
+    function recomputeWmonighePct() {
+      allRows.forEach(r => {
+        const rankVal = parseFloat(r.wmonigheRank);
+        if (!isNaN(rankVal)) {
+          let pct = (300 - rankVal) / 299;
+          if (rankVal >= 300) pct = 0;
+          if (pct > 1) pct = 1;
+          if (pct < 0) pct = 0;
+          r.wmonighePct = pct.toFixed(2);
+        } else {
+          r.wmonighePct = '';
+        }
+      });
+    }
+
+    function updatePlayerOptions() {
+      const dl = document.getElementById('players-datalist');
+      if (!dl) return;
+      dl.innerHTML = '';
+      allRows.forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r.player;
+        dl.appendChild(opt);
+      });
+    }
+
+    function applyCustomRanks() {
+      if (!customRanks) return;
+      allRows.forEach(r => {
+        const canon = canonicalName(r.player);
+        if (customRanks.hasOwnProperty(canon)) {
+          r.wmonigheRank = customRanks[canon];
+        } else {
+          r.wmonigheRank = '';
+          r.fantasyPts = 'N/A';
+        }
+      });
+      recomputeWmonighePct();
+      computeRatings();
+      sortAndRender(sortState.key, true);
+      updateRankingsSource('Custom (uploaded)');
+      currentRankSet = 'custom';
+      refreshRankSetOptions(true);
+      const sel = document.getElementById('rankSet');
+      if (sel) sel.value = 'custom';
+    }
+
+    function restoreOriginalRanks() {
+      allRows.forEach(r => {
+        r.wmonigheRank = r.wmonigheRankOrig;
+        r.fantasyPts = r.fantasyPtsOrig;
+      });
+      recomputeWmonighePct();
+      computeRatings();
+      sortAndRender(sortState.key, true);
+      updateRankingsSource('wmonighe');
+      const sel = document.getElementById('rankSet');
+      if (sel) sel.value = 'wmonighe';
+      currentRankSet = 'wmonighe';
+    }
+
+    function refreshRankSetOptions(hasCustom) {
+      const select = document.getElementById('rankSet');
+      if (!select) return;
+      const current = select.value;
+      select.innerHTML = '';
+      const baseOpt = document.createElement('option');
+      baseOpt.value = 'wmonighe';
+      baseOpt.textContent = 'wmonighe';
+      select.appendChild(baseOpt);
+      const uploadOpt = document.createElement('option');
+      uploadOpt.value = 'upload';
+      uploadOpt.textContent = 'Upload Rankings';
+      select.appendChild(uploadOpt);
+      if (hasCustom) {
+        const customOpt = document.createElement('option');
+        customOpt.value = 'custom';
+        customOpt.textContent = 'Custom (uploaded)';
+        select.appendChild(customOpt);
+        if (['wmonighe', 'upload', 'custom'].includes(current)) {
+          select.value = current;
+        } else {
+          select.value = 'wmonighe';
+        }
+      } else {
+        if (current === 'upload') {
+          select.value = 'upload';
+        } else {
+          select.value = 'wmonighe';
+        }
+      }
+    }
+
+    function findUnmatchedPlayers() {
+      const set = new Set(allRows.map(r => canonicalName(r.player)));
+      return Object.keys(customRanks || {}).filter(c => !set.has(c)).map(c => ({
+        canon: c,
+        name: customNames[c] || c,
+      }));
+    }
+
+    function updateUnmatchedModal() {
+      const listEl = document.getElementById('unmatched-list');
+      if (!listEl) return;
+      listEl.innerHTML = '';
+      const unmatched = findUnmatchedPlayers();
+      if (!unmatched.length) {
+        document.getElementById('unmatched-modal').style.display = 'none';
+        return;
+      }
+      unmatched.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'unmatched-item';
+        div.dataset.canon = item.canon;
+        div.innerHTML = `
+          <span>${item.name}</span>
+          <input type="text" list="players-datalist" />`;
+        listEl.appendChild(div);
+      });
+      document.getElementById('unmatched-modal').style.display = 'flex';
+    }
+
+    function parseCSV(text) {
+      const lines = text.trim().split(/\r?\n/);
+      if (!lines.length) throw new Error('Empty file');
+      const headers = lines[0].split(',').map(h => h.trim());
+      let playerIdx = -1;
+      headers.forEach((h, i) => {
+        const c = canonicalField(h);
+        if (c === 'player' || c === 'name') playerIdx = i;
+      });
+      if (playerIdx === -1) {
+        throw new Error('Player column not found.');
+      }
+      const ranks = {};
+      const originals = {};
+      let rankCounter = 1;
+      for (let i = 1; i < lines.length; i++) {
+        const parts = lines[i].split(',');
+        const player = (parts[playerIdx] || '').trim();
+        if (player) {
+          const canon = canonicalName(player);
+          ranks[canon] = rankCounter.toString();
+          if (!originals[canon]) originals[canon] = player;
+          rankCounter++;
+        }
+      }
+      return { ranks, originals };
+    }
+
+    function handleFiles(files) {
+      if (!files.length) return;
+      const file = files[0];
+      const reader = new FileReader();
+      document.getElementById('upload-feedback').textContent = 'Loading...';
+      reader.onload = e => {
+        try {
+          const parsed = parseCSV(e.target.result);
+          customRanks = parsed.ranks;
+          customNames = parsed.originals;
+          const unmatchedCount = findUnmatchedPlayers().length;
+          const feedback =
+            '✅ Custom rankings imported successfully' +
+            (unmatchedCount
+              ? `<br>${unmatchedCount} players were not found. Click Next to Resolve`
+              : '');
+          document.getElementById('upload-feedback').innerHTML = feedback;
+          document.getElementById('upload-feedback').className = 'upload-success';
+          document.getElementById('close-upload').textContent =
+            unmatchedCount ? 'Next' : 'Close';
+          applyCustomRanks();
+        } catch (err) {
+          document.getElementById('upload-feedback').textContent = 'Error: ' + err.message;
+          document.getElementById('upload-feedback').className = 'upload-error';
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    document
+      .getElementById('updateBtn')
+      .addEventListener('click', () => {
+        computeRatings();
+        sortState = { key: 'rating', asc: true };
+        sortAndRender('rating');
+      });
+
+    function renderRows(rows) {
+      displayRows = rows;
+      const tbody = document.querySelector('#rankings-table tbody');
+      tbody.innerHTML = '';
+      rows.forEach((r, i) => {
+        const tr = document.createElement('tr');
+        columns.forEach(col => {
+          tr.insertAdjacentHTML('beforeend', col.cell(r, i));
+        });
+        tbody.appendChild(tr);
+      });
+    }
+
+    function showSkeleton() {
+      const tbody = document.querySelector('#rankings-table tbody');
+      const thead = document.querySelector('#rankings-table thead');
+      thead.innerHTML = '';
+      const headerRow = document.createElement('tr');
+      columns.forEach(col => {
+        const th = document.createElement('th');
+        if (col.thClass) th.className = col.thClass;
+        th.innerHTML = col.header;
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+      tbody.innerHTML = '';
+      for (let i = 0; i < 10; i++) {
+        const tr = document.createElement('tr');
+        tr.className = 'skeleton-row';
+        columns.forEach(() => {
+          const td = document.createElement('td');
+          const div = document.createElement('div');
+          div.className = 'skeleton-block';
+          td.appendChild(div);
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      }
+      const msg = document.getElementById('loading-message');
+      if (msg) msg.style.display = 'block';
+    }
+
+    function sortAndRender(key, preserve) {
+      if (!key) {
+        displayRows = allRows;
+        renderRows(allRows);
+        return;
+      }
+      let asc;
+      if (preserve && sortState.key === key) {
+        asc = sortState.asc;
+      } else {
+        asc = sortState.key === key ? !sortState.asc : true;
+      }
+      sortState = { key, asc };
+      const sorted = [...allRows].sort((a, b) => {
+        const va = parseFloat(a[key]);
+        const vb = parseFloat(b[key]);
+        if (isNaN(va) && isNaN(vb)) return 0;
+        if (isNaN(va)) return 1;
+        if (isNaN(vb)) return -1;
+        return asc ? va - vb : vb - va;
+      });
+      displayRows = sorted;
+      renderRows(sorted);
+
+      const headers = document.querySelectorAll('#rankings-table th.sortable');
+      headers.forEach(h => h.classList.remove('sorted-asc', 'sorted-desc'));
+      const active = document.querySelector(`#rankings-table th[data-key="${key}"]`);
+      if (active) active.classList.add(asc ? 'sorted-asc' : 'sorted-desc');
+    }
+
+    async function loadData() {
+      try {
+        const [rankingsRes, sentimentRes] = await Promise.all([
+          fetch(rankingsUrl),
+          fetch(sentimentUrl),
+        ]);
+        const rankings = await rankingsRes.json();
+        const sentimentRows = await sentimentRes.json();
+
+        const sentimentMap = {};
+        sentimentRows.forEach(r => {
+          const playerName = canonicalName(r.Player || r.player);
+          const score = r.Sentiment || r['Sentiment Score'] || r.F || '';
+          if (playerName) sentimentMap[playerName] = score;
+        });
+
+        const tbody = document.querySelector('#rankings-table tbody');
+        const thead = document.querySelector('#rankings-table thead');
+        tbody.innerHTML = '';
+        thead.innerHTML = '';
+
+        const rowsData = rankings.map(row => {
+          const player = row.Player || row.player;
+          const canonName = canonicalName(player);
+          const rowSentiment =
+            row.Sentiment || row['Sentiment Score'] || row.H || '';
+          const sentiment =
+            rowSentiment || sentimentMap[canonName] || '';
+          let adp = row.J || row.ADP || row['ADP'] || '';
+          let adpPct = getColumn(row, 'L', 'adp percentile');
+          const isUndrafted =
+            adp.toString().toLowerCase() === 'undrafted' ||
+            adp === '#N/A' ||
+            adp === '-' ||
+            adpPct === '#N/A' ||
+            adpPct === '#VALUE!' ||
+            adpPct === '';
+          if (isUndrafted) {
+            adp = 'Undrafted';
+            adpPct = '0.00';
+          }
+          const fantasyPts = getFantasyPoints(row);
+          const wmonigheRank = getColumn(row, 'G', 'wmonighe rank');
+
+          const teamMap = { JAX: 'JAC' };
+          const teamCode = teamMap[row.Team] || row.Team;
+          const teamLogo = row.Team
+            ? `https://www.fantasynerds.com/images/nfl/team_logos/${teamCode}.png`
+            : '';
+          const playerHtml = teamLogo
+            ? `<img src="${teamLogo}" class="team-logo" onerror="this.style.display='none'" /> ${player} (${row.Position})`
+            : `${player} (${row.Position})`;
+
+          return {
+            player,
+            position: row.Position,
+            team: row.Team,
+            playerHtml,
+            sentiment,
+            sentimentValue: parseFloat(sentiment),
+            adp,
+            adpPct,
+            postDraftId: getColumn(row, 'P', 'post draft id'),
+            wmonigheRank,
+            wmonigheRankOrig: wmonigheRank,
+            vorp: getColumn(row, 'Q', 'vorp score'),
+            vorpPct: getColumn(row, 'R', 'vorp percentile'),
+            fantasyPts,
+            fantasyPtsOrig: fantasyPts,
+          };
+        });
+
+        // Add fantasy points percentiles by position
+        const fpsByPos = {};
+        rowsData.forEach(r => {
+          const val = parseFloat(r.fantasyPts);
+          if (!isNaN(val)) {
+            const pos = r.position || 'NA';
+            let include = true;
+            if (pos === 'QB') include = val > 50;
+            if (include) {
+              if (!fpsByPos[pos]) fpsByPos[pos] = [];
+              fpsByPos[pos].push(val);
+            }
+          }
+        });
+        Object.keys(fpsByPos).forEach(pos => fpsByPos[pos].sort((a, b) => a - b));
+
+        rowsData.forEach(r => {
+          const val = parseFloat(r.fantasyPts);
+          const pos = r.position || 'NA';
+          const arr = fpsByPos[pos];
+          if (pos === 'QB') {
+            if (!isNaN(val) && val > 50 && arr && arr.length) {
+              const rank = arr.filter(v => v <= val).length;
+              r.fpPct = (rank / arr.length).toFixed(2);
+              r.fpPctValue = r.fpPct;
+            } else if (!isNaN(val)) {
+              r.fpPct = '0.00';
+              r.fpPctValue = '0.00';
+              r.fpPctDisplay = 'Unranked';
+            } else {
+              r.fpPct = '';
+              r.fpPctValue = '';
+            }
+          } else {
+            if (!isNaN(val) && arr && arr.length) {
+              const rank = arr.filter(v => v <= val).length;
+              r.fpPct = (rank / arr.length).toFixed(2);
+              r.fpPctValue = r.fpPct;
+            } else {
+              r.fpPct = '';
+              r.fpPctValue = '';
+            }
+          }
+        });
+
+        // Add wmonighe rank percentiles (1 -> 1, 300 or below -> 0)
+        rowsData.forEach(r => {
+          const rankVal = parseFloat(r.wmonigheRank);
+          if (!isNaN(rankVal)) {
+            let pct = (300 - rankVal) / 299;
+            if (rankVal >= 300) pct = 0;
+            if (pct > 1) pct = 1;
+            if (pct < 0) pct = 0;
+            r.wmonighePct = pct.toFixed(2);
+          } else {
+            r.wmonighePct = '';
+          }
+        });
+
+        // Round VORP score percentile
+        rowsData.forEach(r => {
+          const val = parseFloat(r.vorpPct);
+          if (!isNaN(val)) {
+            r.vorpPct = val.toFixed(2);
+          } else {
+            r.vorpPct = '';
+          }
+        });
+
+        // Sentiment rendering
+        const numericSentiments = rowsData
+          .map(r => r.sentimentValue)
+          .filter(v => !isNaN(v));
+        const minSentiment =
+          numericSentiments.length > 0 ? Math.min(...numericSentiments) : 0;
+        const maxSentiment =
+          numericSentiments.length > 0 ? Math.max(...numericSentiments) : 0;
+        const range = maxSentiment - minSentiment || 1;
+
+        rowsData.forEach(r => {
+          if (!isNaN(r.sentimentValue)) {
+            const pctRaw = (r.sentimentValue - minSentiment) / range;
+            r.sentimentPercent = pctRaw * 100;
+            r.sentimentPct = pctRaw.toFixed(2);
+          } else {
+            r.sentimentPercent = 0;
+            r.sentimentPct = '';
+          }
+        });
+
+        allRows = rowsData;
+        computeRatings();
+        updatePlayerOptions();
+        refreshRankSetOptions(false);
+
+        const headerRow = document.createElement('tr');
+        columns.forEach(col => {
+          const th = document.createElement('th');
+          if (col.thClass) th.className = col.thClass;
+          th.innerHTML = col.header;
+          if (col.sortKey) {
+            th.dataset.key = col.sortKey;
+            th.classList.add('sortable');
+            th.addEventListener('click', () => sortAndRender(col.sortKey));
+          }
+          headerRow.appendChild(th);
+        });
+        thead.appendChild(headerRow);
+
+        updateRankingsSource('wmonighe');
+
+        sortState = { key: 'rating', asc: true };
+        sortAndRender('rating');
+        const loadingMsg = document.getElementById('loading-message');
+        if (loadingMsg) loadingMsg.style.display = 'none';
+      } catch (err) {
+        console.error('Error loading data:', err);
+        const loadingMsg = document.getElementById('loading-message');
+        if (loadingMsg) loadingMsg.style.display = 'none';
+      }
+    }
+
+    document.getElementById('exportBtn').addEventListener('click', () => {
+      const header = 'id,Name\n';
+      const rows = displayRows
+        .map(r => `${r.postDraftId || ''},${r.player || ''}`)
+        .join('\n');
+      const csv = header + rows;
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'Underdog Post-Draft Best Ball Rankings.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      weightInputs.wmonighe.value = 35;
+      weightInputs.adp.value = 35;
+      weightInputs.fp.value = 10;
+      weightInputs.sentiment.value = 5;
+      weightInputs.vorp.value = 15;
+      Object.keys(weightInputs).forEach(k => {
+        updateWeightDisplay(k);
+        prevWeights[k] = parseInt(weightInputs[k].value, 10) || 0;
+      });
+      computeRatings();
+      sortAndRender(sortState.key, true);
+    });
+
+
+    document.getElementById('close-upload').addEventListener('click', () => {
+      document.getElementById('upload-modal').classList.remove('show');
+      updateUnmatchedModal();
+    });
+
+    document.getElementById('map-all').addEventListener('click', () => {
+      document.querySelectorAll('#unmatched-list .unmatched-item').forEach(div => {
+        const input = div.querySelector('input');
+        const val = input.value.trim();
+        if (!val) return;
+        const origCanon = div.dataset.canon;
+        const canonSel = canonicalName(val);
+        customRanks[canonSel] = customRanks[origCanon];
+        delete customRanks[origCanon];
+        delete customNames[origCanon];
+      });
+      applyCustomRanks();
+      updateUnmatchedModal();
+    });
+
+    document.getElementById('close-unmatched').addEventListener('click', () => {
+      document.getElementById('unmatched-modal').style.display = 'none';
+    });
+
+    let currentRankSet = 'wmonighe';
+    document.getElementById('rankSet').addEventListener('change', e => {
+      const val = e.target.value;
+      if (val === 'upload') {
+        e.target.value = currentRankSet;
+        document.getElementById('upload-modal').classList.add('show');
+        return;
+      }
+      if (val === 'custom') {
+        applyCustomRanks();
+      } else {
+        restoreOriginalRanks();
+      }
+      currentRankSet = val;
+    });
+
+
+    const dropZone = document.getElementById('drop-zone');
+    const uploadInput = document.getElementById('upload-input');
+    dropZone.addEventListener('click', () => uploadInput.click());
+    dropZone.addEventListener('dragover', e => {
+      e.preventDefault();
+    });
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      handleFiles(e.dataTransfer.files);
+    });
+    uploadInput.addEventListener('change', e => handleFiles(e.target.files));
+
+
+    const rateBtn = document.getElementById('rateMyTeamBtn');
+    if (rateBtn) {
+      rateBtn.classList.add('animate-pulse');
+      // Stop pulsing after 3 seconds
+      setTimeout(() => rateBtn.classList.remove('animate-pulse'), 3000);
+      rateBtn.addEventListener('click', () => {
+        window.location.href = 'portfolio.html';
+      });
+    }
+
+    showSkeleton();
+    loadData();
+  </script>
+</body>
+</html>

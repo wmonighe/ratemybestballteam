@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upload Exposure CSV</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="portfolio.css">
+</head>
+<body>
+  <div id="portfolio-wrapper">
+    <div id="portfolio-controls">
+      <div id="upload-container">
+        <h1>Upload Exposure CSV</h1>
+        <label id="open-modal" class="upload-btn">Upload Exposure CSV</label>
+        <button id="clear-lineups" class="upload-btn" style="display:none;">Clear Lineups</button>
+        <div id="message"></div>
+      </div>
+      <div id="format-options" style="display:none;">
+        <p class="info-note">Showing Teams Drafted in the Following Formats:</p>
+        <label id="label-pre" class="format-option"><img class="icon" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRltuDZN3yIMK1sh9oDF7ykc7HYDeuCGoZ--g&s" alt="Underdog logo"><input type="checkbox" id="chk-pre"> Pre-Draft</label>
+        <label id="label-post" class="format-option"><img class="icon" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRltuDZN3yIMK1sh9oDF7ykc7HYDeuCGoZ--g&s" alt="Underdog logo"><input type="checkbox" id="chk-post"> Post-Draft</label>
+        <label id="label-elim" class="format-option"><img class="icon" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRltuDZN3yIMK1sh9oDF7ykc7HYDeuCGoZ--g&s" alt="Underdog logo"><input type="checkbox" id="chk-elim"> Eliminator</label>
+      </div>
+      <div id="date-filter" style="display:none;">
+        <label>Draft Date:
+          <input type="date" id="start-date" min="2025-01-01">
+          <span>&ndash;</span>
+          <input type="date" id="end-date" min="2025-01-01">
+        </label>
+      </div>
+      <div id="sort-control" style="display:none;">
+        <label>Ratings Sort:
+          <button id="sort-toggle" aria-label="Toggle ratings sort">
+            &#8595;
+          </button>
+        </label>
+      </div>
+    </div>
+    <div id="teams"></div>
+  </div>
+
+  <div id="upload-modal" class="modal">
+    <div class="modal-content">
+      <h2>Select CSVs to Upload</h2>
+      <div class="upload-row">
+        <span>Pre-Draft (Underdog)</span>
+        <label for="pre-file" class="browse-btn">Browse</label>
+        <input type="file" id="pre-file" accept=".csv">
+        <span id="pre-status" class="status"></span>
+      </div>
+      <div class="upload-row">
+        <span>Post-Draft (Underdog)</span>
+        <label for="post-file" class="browse-btn">Browse</label>
+        <input type="file" id="post-file" accept=".csv">
+        <span id="post-status" class="status"></span>
+      </div>
+      <div class="upload-row">
+        <span>Eliminator</span>
+        <label for="elim-file" class="browse-btn">Browse</label>
+        <input type="file" id="elim-file" accept=".csv">
+        <span id="elim-status" class="status"></span>
+      </div>
+      <button id="upload-done">Done</button>
+    </div>
+  </div>
+
+  <script>
+    const requiredHeaders = [
+      "Picked At","Pick Number","Appearance","First Name","Last Name","Team","Position","Draft","Draft Entry","Draft Entry Fee","Draft Size","Draft Total Prizes","Tournament Title","Tournament","Tournament Entry Fee","Tournament Total Prizes","Tournament Size","Draft Pool Title","Draft Pool","Draft Pool Entry Fee","Draft Pool Total Prizes","Draft Pool Size","Weekly Winner Title","Weekly Winner","Weekly Winner Entry Fee","Weekly Winner Total Prizes","Weekly Winner Size"
+    ];
+
+    const sheetId = '1rNouBdE-HbWafu-shO_5JLPSrLhr-xuGpXYfyOI-2oY';
+    const rankingsUrl = `https://opensheet.elk.sh/${sheetId}/Rankings`;
+    const sentimentUrl = `https://opensheet.elk.sh/${sheetId}/Sentiment`;
+
+    function canonicalName(name){return (name||'').toString().toLowerCase().replace(/[.'’]/g,'').replace(/[^a-z0-9]+/g,' ').trim();}
+    function canonicalField(name){return (name||'').toString().toLowerCase().replace(/[^a-z0-9]/g,'');}
+
+    function getFantasyPoints(row){
+      if(row.I||row['Fantasy Points']||row['FantasyPts']) return row.I||row['Fantasy Points']||row['FantasyPts'];
+      const key=Object.keys(row).find(k=>{const ck=canonicalField(k);return ck.includes('fantasypoints')||ck.includes('fantasypts');});
+      return key?row[key]:'';
+    }
+
+    function getColumn(row,letter,labelPart){
+      if(row[letter]) return row[letter];
+      const target=canonicalField(labelPart);
+      const key=Object.keys(row).find(k=>canonicalField(k).includes(target));
+      return key?row[key]:'';
+    }
+
+    const ratingMap={};
+
+    const positiveEmojis=['😃','🚀','💰','💵','🙌'];
+    const neutralEmojis=['😐','🤔','🧐','🤷','😑'];
+    const negativeEmojis=['😞','👎','☠️','🔥','🆘'];
+    const teamMap={JAX:'JAC'};
+
+    function pickEmoji(arr){return arr[Math.floor(Math.random()*arr.length)];}
+
+    function colorForPct(pct){
+      const hue=pct>=66?120:pct>=34?60:0;
+      const light=90-(Math.min(pct,100)/100)*50;
+      const bg=`hsl(${hue},70%,${light}%)`;
+      const text=light<60?'#fff':'#000';
+      return {bg,text};
+    }
+
+    const ratingsPromise=loadRatings();
+
+    async function loadRatings(){
+      try{
+        const[rankRes,sentRes]=await Promise.all([fetch(rankingsUrl),fetch(sentimentUrl)]);
+        const rankings=await rankRes.json();
+        const sentimentRows=await sentRes.json();
+        const sentimentMap={};
+        sentimentRows.forEach(r=>{const playerName=canonicalName(r.Player||r.player);const score=r.Sentiment||r['Sentiment Score']||r.F||'';if(playerName)sentimentMap[playerName]=score;});
+        const rowsData=rankings.map(row=>{const player=row.Player||row.player;const canon=canonicalName(player);const rowSentiment=row.Sentiment||row['Sentiment Score']||row.H||'';const sentiment=rowSentiment||sentimentMap[canon]||'';let adp=row.J||row.ADP||row['ADP']||'';let adpPct=getColumn(row,'L','adp percentile');const isUndrafted=adp.toString().toLowerCase()==='undrafted'||adp==='#N/A'||adp==='-'||adpPct==='#N/A'||adpPct==='#VALUE!'||adpPct==='';if(isUndrafted){adp='Undrafted';adpPct='0.00';}const fantasyPts=getFantasyPoints(row);const wmonigheRank=getColumn(row,'G','wmonighe rank');return{player,sentimentValue:parseFloat(sentiment),adpPct,wmonigheRank,vorpPct:getColumn(row,'R','vorp percentile'),fantasyPts};});
+        const numericFps=rowsData.map(r=>parseFloat(r.fantasyPts)).filter(v=>!isNaN(v)).sort((a,b)=>a-b);
+        rowsData.forEach(r=>{const val=parseFloat(r.fantasyPts);if(!isNaN(val)&&numericFps.length){const rank=numericFps.filter(v=>v<=val).length;r.fpPct=(rank/numericFps.length).toFixed(2);}else{r.fpPct='';}});
+        rowsData.forEach(r=>{const rankVal=parseFloat(r.wmonigheRank);if(!isNaN(rankVal)){let pct=(300-rankVal)/299;if(rankVal>=300)pct=0;if(pct>1)pct=1;if(pct<0)pct=0;r.wmonighePct=pct.toFixed(2);}else{r.wmonighePct='';}});
+        rowsData.forEach(r=>{const val=parseFloat(r.vorpPct);r.vorpPct=!isNaN(val)?parseFloat(val).toFixed(2):'';});
+        const numericSentiments=rowsData.map(r=>r.sentimentValue).filter(v=>!isNaN(v));
+        const minSentiment=numericSentiments.length?Math.min(...numericSentiments):0;
+        const maxSentiment=numericSentiments.length?Math.max(...numericSentiments):0;
+        const range=maxSentiment-minSentiment||1;
+        rowsData.forEach(r=>{if(!isNaN(r.sentimentValue)){const pctRaw=(r.sentimentValue-minSentiment)/range;r.sentimentPct=pctRaw.toFixed(2);}else{r.sentimentPct='';}});
+        const weights={wmonighe:0.35,adp:0.35,fp:0.1,sentiment:0.05,vorp:0.15};
+        rowsData.forEach(r=>{const items=[{v:parseFloat(r.wmonighePct),w:weights.wmonighe},{v:parseFloat(r.adpPct),w:weights.adp},{v:parseFloat(r.fpPct),w:weights.fp},{v:parseFloat(r.sentimentPct),w:weights.sentiment},{v:parseFloat(r.vorpPct),w:weights.vorp}].filter(i=>!isNaN(i.v)&&i.w>0);const totalWeight=items.reduce((a,b)=>a+b.w,0);let rating='';if(items.length&&totalWeight>0){const sum=items.reduce((s,i)=>s+i.v*i.w,0);rating=(sum/totalWeight).toFixed(2);}ratingMap[canonicalName(r.player)]=rating;});
+      }catch(err){console.error('Error loading ratings',err);}
+    }
+
+    const allTeams=[];
+    const uploadedFormats={pre:false,post:false,elim:false};
+    let sortOrder='desc';
+
+    function saveUploads(){
+      try{
+        localStorage.setItem('bb_allTeams',JSON.stringify(allTeams));
+        localStorage.setItem('bb_uploadedFormats',JSON.stringify(uploadedFormats));
+      }catch(err){
+        console.error('Error saving uploads',err);
+      }
+    }
+
+    function loadUploads(){
+      try{
+        const teamsStr=localStorage.getItem('bb_allTeams');
+        const formatsStr=localStorage.getItem('bb_uploadedFormats');
+        if(teamsStr&&formatsStr){
+          const savedTeams=JSON.parse(teamsStr);
+          const savedFormats=JSON.parse(formatsStr);
+          if(Array.isArray(savedTeams)&&savedFormats){
+            savedTeams.forEach(t=>{if(t.draftDate)t.draftDate=new Date(t.draftDate);allTeams.push(t);});
+            uploadedFormats.pre=!!savedFormats.pre;
+            uploadedFormats.post=!!savedFormats.post;
+            uploadedFormats.elim=!!savedFormats.elim;
+          }
+        }
+      }catch(err){
+        console.error('Error loading uploads',err);
+      }
+    }
+
+    function updateFormatOptions(){
+      const container=document.getElementById('format-options');
+      const preLabel=document.getElementById('label-pre');
+      const postLabel=document.getElementById('label-post');
+      const elimLabel=document.getElementById('label-elim');
+      const dateFilter=document.getElementById('date-filter');
+      const sortControl=document.getElementById('sort-control');
+      const anyUploaded=uploadedFormats.pre||uploadedFormats.post||uploadedFormats.elim;
+      container.style.display=anyUploaded?'block':'none';
+      if(dateFilter) dateFilter.style.display=anyUploaded?'block':'none';
+      if(sortControl) sortControl.style.display=anyUploaded?'block':'none';
+      if(anyUploaded&&dateFilter){
+        const startInput=document.getElementById('start-date');
+        const endInput=document.getElementById('end-date');
+        const today=new Date().toISOString().split('T')[0];
+        if(!startInput.value) startInput.value='2025-01-01';
+        if(!endInput.value) endInput.value=today;
+        startInput.max=today;
+        endInput.max=today;
+      }
+      preLabel.style.display=uploadedFormats.pre?'inline-flex':'none';
+      postLabel.style.display=uploadedFormats.post?'inline-flex':'none';
+      elimLabel.style.display=uploadedFormats.elim?'inline-flex':'none';
+      if(uploadedFormats.pre) document.getElementById('chk-pre').checked=true;
+      if(uploadedFormats.post) document.getElementById('chk-post').checked=true;
+      if(uploadedFormats.elim) document.getElementById('chk-elim').checked=true;
+      const uploadContainer=document.getElementById('upload-container');
+      const uploadBtn=document.getElementById('open-modal');
+      const clearBtn=document.getElementById('clear-lineups');
+      const uploadTitle=uploadContainer.querySelector('h1');
+      if(anyUploaded){
+        uploadContainer.classList.add('uploaded');
+        uploadBtn.textContent='Upload More';
+        if(clearBtn) clearBtn.style.display='inline-block';
+        if(uploadTitle) uploadTitle.style.display='none';
+      }else{
+        uploadContainer.classList.remove('uploaded');
+        uploadBtn.textContent='Upload Exposure CSV';
+        if(clearBtn) clearBtn.style.display='none';
+        if(uploadTitle) uploadTitle.style.display='block';
+      }
+      const controls=document.getElementById('portfolio-controls');
+      if(controls){
+        if(anyUploaded) controls.classList.add('with-uploads');
+        else controls.classList.remove('with-uploads');
+      }
+    }
+
+    async function handleFile(file,statusEl,format){
+      if(!file) return false;
+      await ratingsPromise;
+      try{
+        const text=await file.text();
+        const lines=text.trim().split(/\r?\n/).filter(l=>l.trim()!=='');
+        const headers=lines[0].split(',').map(h=>h.trim());
+        const allPresent=requiredHeaders.every(h=>headers.includes(h));
+        if(!allPresent){statusEl.textContent='\u2717 Upload Failure';statusEl.className='status error';return false;}
+        const rows=lines.slice(1).map(line=>{const values=line.split(',').map(v=>v.trim());const obj={};headers.forEach((h,i)=>obj[h]=values[i]);return obj;});
+        const teams={};
+        rows.forEach(r=>{const key=r['Draft Entry'];if(!teams[key]){teams[key]={tournamentTitle:r['Tournament Title'],entryFee:r['Tournament Entry Fee'],picks:[]};}teams[key].picks.push(r);});
+        const teamArr=Object.values(teams);
+        teamArr.forEach(team=>{
+          team.picks.sort((a,b)=>parseInt(a['Pick Number'],10)-parseInt(b['Pick Number'],10));
+          const firstPick=team.picks[0];
+          let dateEntered='';
+          let draftDate=null;
+          if(firstPick&&firstPick['Picked At']){
+            const d=new Date(firstPick['Picked At']);
+            if(!isNaN(d)){
+              draftDate=d;
+              const mm=String(d.getMonth()+1).padStart(2,'0');
+              const dd=String(d.getDate()).padStart(2,'0');
+              const yy=d.getFullYear();
+              dateEntered=`${mm}/${dd}/${yy}`;
+            }
+          }
+          team.dateEntered=dateEntered;
+          team.draftDate=draftDate;
+          const rosterSize=team.picks.length;
+          team.rosterSize=rosterSize;
+          team.totalRating=team.picks.reduce((sum,p)=>{const canon=canonicalName(`${p['First Name']} ${p['Last Name']}`);const rating=parseFloat(ratingMap[canon]);return sum+(isNaN(rating)?0:rating);},0);
+          if(rosterSize===20){
+            team.totalRating=team.totalRating*(18/20);
+          }
+        });
+        teamArr.forEach(t=>t.format=format);
+        allTeams.push(...teamArr);
+        statusEl.textContent='\u2713 Upload Successful';
+        statusEl.className='status success';
+        return true;
+      }catch(err){
+        statusEl.textContent='\u2717 Upload Failure';
+        statusEl.className='status error';
+        return false;
+      }
+    }
+
+    function renderTeams(teams,sortOrder){
+      const teamsEl=document.getElementById('teams');
+      teamsEl.innerHTML='';
+      if(sortOrder==='asc') teams.sort((a,b)=>a.totalRating-b.totalRating);
+      else teams.sort((a,b)=>b.totalRating-a.totalRating);
+      teams.forEach(team=>{
+        const card=document.createElement('div');
+        card.className=`team-card draft-card roster-${team.rosterSize}`;
+        const header=document.createElement('h2');
+        const icon=document.createElement('img');
+        icon.className='icon';
+        icon.src='https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRltuDZN3yIMK1sh9oDF7ykc7HYDeuCGoZ--g&s';
+        icon.alt='Underdog icon';
+        header.appendChild(icon);
+        const feeDisp=parseFloat(team.entryFee).toString();
+        const datePart=team.dateEntered?` - Date Entered: ${team.dateEntered}`:'';
+        header.append(`${team.tournamentTitle} - $${feeDisp}${datePart} - Total Rating: `);
+        const ratingEl=document.createElement('span');
+        ratingEl.className='rating-pill';
+        const pct=Math.max(0,Math.min(100,((team.totalRating-7.5)/(11-7.5))*100));
+        let emojiArr=neutralEmojis;
+        if(pct>=66) emojiArr=positiveEmojis;
+        else if(pct<34) emojiArr=negativeEmojis;
+        const colors=colorForPct(pct);
+        ratingEl.textContent=`${pct.toFixed(0)}`;
+        ratingEl.style.backgroundColor=colors.bg;
+        ratingEl.style.color=colors.text;
+        header.appendChild(ratingEl);
+        const emojiSpan=document.createElement('span');
+        emojiSpan.className='rating-emojis';
+        const em1=pickEmoji(emojiArr);
+        emojiSpan.textContent=` ${em1}`;
+        header.appendChild(emojiSpan);
+        card.appendChild(header);
+
+        const summary=document.createElement('div');
+        summary.className='team-summary';
+        const stats={};
+        team.picks.forEach(p=>{
+          const code=teamMap[p["Team"]]||p["Team"]||'';
+          if(!code) return;
+          const canon=canonicalName(`${p['First Name']} ${p['Last Name']}`);
+          const rating=parseFloat(ratingMap[canon]);
+          if(!stats[code]) stats[code]={count:0,total:0};
+          stats[code].count++;
+          if(!isNaN(rating)) stats[code].total+=rating;
+        });
+        Object.entries(stats)
+          .filter(([,v])=>v.count>=2)
+          .sort((a,b)=>b[1].count-a[1].count)
+          .forEach(([code,{count,total}])=>{
+            const item=document.createElement('div');
+            item.className='team-count';
+            item.title=`Total Rating: ${total.toFixed(2)}`;
+            const img=document.createElement('img');
+            img.src=`https://www.fantasynerds.com/images/nfl/team_logos/${code}.png`;
+            img.className='team-logo';
+            img.alt=code;
+            img.onerror=()=>{img.style.display='none';};
+            const span=document.createElement('span');
+            span.textContent=`${count}`;
+            item.appendChild(img);
+            item.appendChild(span);
+            summary.appendChild(item);
+          });
+        if(summary.childNodes.length){
+          const label=document.createElement('small');
+          label.className='summary-label';
+          label.textContent='Team Exposure';
+          card.appendChild(label);
+          card.appendChild(summary);
+        }
+        const table=document.createElement('table');
+          table.className="player-table";
+        const thead=document.createElement('thead');
+        thead.innerHTML='<tr><th>Pick #</th><th>Name</th><th>Team</th><th>Pos</th><th>Rating</th></tr>';
+        table.appendChild(thead);
+        const tbody=document.createElement('tbody');
+        team.picks.forEach(p=>{
+          const tr=document.createElement('tr');
+          const canon=canonicalName(`${p['First Name']} ${p['Last Name']}`);
+          const pos=p["Position"];
+          const rating=ratingMap[canon]||'';
+          const teamCode=teamMap[p["Team"]]||p["Team"];
+          const teamLogo=p["Team"]?`https://www.fantasynerds.com/images/nfl/team_logos/${teamCode}.png`:'';
+          const teamCell=teamLogo?`<img src="${teamLogo}" class="team-logo" onerror="this.style.display='none'" alt="${p["Team"]}" />`:'';
+          tr.innerHTML=`<td>${p["Pick Number"]}</td><td>${p["First Name"]} ${p["Last Name"]}</td><td>${teamCell}</td><td data-pos="${pos}"><span class="pos-dot"></span>${pos}</td><td>${rating}</td>`;
+          tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+        card.appendChild(table);
+        teamsEl.appendChild(card);
+      });
+      requestAnimationFrame(standardizeTableHeights);
+    }
+
+    function filterAndRender(){
+      const selected=[];
+      if(document.getElementById('chk-pre').checked) selected.push('pre');
+      if(document.getElementById('chk-post').checked) selected.push('post');
+      if(document.getElementById('chk-elim').checked) selected.push('elim');
+      const startStr=document.getElementById('start-date').value;
+      const endStr=document.getElementById('end-date').value;
+      const startDate=startStr?new Date(startStr):null;
+      const endDate=endStr?new Date(endStr):null;
+      const filtered=allTeams.filter(t=>{
+        if(!selected.includes(t.format)) return false;
+        if(startDate&&t.draftDate&&t.draftDate<startDate) return false;
+        if(endDate&&t.draftDate&&t.draftDate>endDate) return false;
+        return true;
+      });
+      renderTeams(filtered,sortOrder);
+    }
+
+    function standardizeTableHeights(){
+      ['18','20'].forEach(size=>{
+        const tables=document.querySelectorAll(`.team-card.roster-${size} table`);
+        let max=0;
+        tables.forEach(t=>{if(t.offsetHeight>max)max=t.offsetHeight;});
+        tables.forEach(t=>{if(max)t.style.height=max+'px';});
+      });
+    }
+
+    document.getElementById('open-modal').addEventListener('click',()=>{
+      document.getElementById('upload-modal').classList.add('show');
+    });
+
+    document.getElementById('upload-done').addEventListener('click',()=>{
+      document.getElementById('upload-modal').classList.remove('show');
+      updateFormatOptions();
+      filterAndRender();
+    });
+
+    document.getElementById('pre-file').addEventListener('change',async e=>{
+      const success=await handleFile(e.target.files[0],document.getElementById('pre-status'),'pre');
+      if(success){
+        uploadedFormats.pre=true;
+        saveUploads();
+      }
+      updateFormatOptions();
+      e.target.value='';
+    });
+    document.getElementById('post-file').addEventListener('change',async e=>{
+      const success=await handleFile(e.target.files[0],document.getElementById('post-status'),'post');
+      if(success){
+        uploadedFormats.post=true;
+        saveUploads();
+      }
+      updateFormatOptions();
+      e.target.value='';
+    });
+    document.getElementById('elim-file').addEventListener('change',async e=>{
+      const success=await handleFile(e.target.files[0],document.getElementById('elim-status'),'elim');
+      if(success){
+        uploadedFormats.elim=true;
+        saveUploads();
+      }
+      updateFormatOptions();
+      e.target.value='';
+    });
+
+    document.getElementById('clear-lineups').addEventListener('click',()=>{
+      allTeams.length=0;
+      uploadedFormats.pre=false;
+      uploadedFormats.post=false;
+      uploadedFormats.elim=false;
+      localStorage.removeItem('bb_allTeams');
+      localStorage.removeItem('bb_uploadedFormats');
+      updateFormatOptions();
+      filterAndRender();
+    });
+
+    loadUploads();
+    updateFormatOptions();
+    ratingsPromise.then(filterAndRender);
+
+    document.getElementById('chk-pre').addEventListener('change',filterAndRender);
+    document.getElementById('chk-post').addEventListener('change',filterAndRender);
+    document.getElementById('chk-elim').addEventListener('change',filterAndRender);
+    document.getElementById('start-date').addEventListener('change',filterAndRender);
+    document.getElementById('end-date').addEventListener('change',filterAndRender);
+    document.getElementById('sort-toggle').addEventListener('click',()=>{
+      sortOrder = sortOrder==='desc' ? 'asc' : 'desc';
+      document.getElementById('sort-toggle').innerHTML = sortOrder==='desc' ? '&#8595;' : '&#8593;';
+      filterAndRender();
+    });
+  </script>
+</body>
+</html>

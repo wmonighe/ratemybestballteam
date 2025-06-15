@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rate Teams</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    .team-logo {
+      width: 30px;
+      height: 30px;
+      object-fit: contain;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 p-4 min-h-screen flex items-center justify-center">
+  <div id="app" class="max-w-4xl w-full"></div>
+  <script type="text/babel">
+    const teamMap = { JAX: 'JAC' };
+    const playerTeamMap = {};
+
+    function canonicalName(name) {
+      return (name || '')
+        .toString()
+        .toLowerCase()
+        .replace(/[.'’]/g, '')
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim();
+    }
+
+    function getTeamLogo(player) {
+      const team = playerTeamMap[canonicalName(player)];
+      const code = teamMap[team] || team;
+      return team
+        ? `https://www.fantasynerds.com/images/nfl/team_logos/${code}.png`
+        : '';
+    }
+
+    const TeamVotingCard = ({ team }) => {
+      const { name, players } = team;
+      const yesVotes = team.yesVotes || 0;
+      const noVotes = team.noVotes || 0;
+      const totalVotes = yesVotes + noVotes;
+      const yesPercent = totalVotes ? Math.round((yesVotes / totalVotes) * 100) : 0;
+      const noPercent = totalVotes ? Math.round((noVotes / totalVotes) * 100) : 0;
+
+      return (
+        <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">{name}</h2>
+          <div className="flex flex-col md:flex-row divide-y divide-gray-200 md:divide-x md:divide-y-0">
+            {/* Quarterback Group */}
+            <div className="p-4 flex-1">
+              <h3 className="text-sm font-bold text-gray-700 mb-2">
+                <span className="inline-block bg-purple-100 text-purple-800 text-xs font-semibold px-2 py-0.5 rounded">QB</span>
+                <span className="ml-2">: {players.QB.length}</span>
+              </h3>
+              <ul className="text-sm text-gray-900">
+                {players.QB.map((player, idx) => {
+                  const logo = getTeamLogo(player);
+                  return (
+                    <li key={`QB-${idx}`} className="mb-1 last:mb-0 border border-purple-300 rounded px-2 py-1 flex items-center">
+                      {logo && (
+                        <img src={logo} className="team-logo" onError={e => (e.target.style.display = 'none')} />
+                      )}
+                      <span>{player}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+            {/* Running Back Group */}
+            <div className="p-4 flex-1">
+              <h3 className="text-sm font-bold text-gray-700 mb-2">
+                <span className="inline-block bg-green-100 text-green-800 text-xs font-semibold px-2 py-0.5 rounded">RB</span>
+                <span className="ml-2">: {players.RB.length}</span>
+              </h3>
+              <ul className="text-sm text-gray-900">
+                {players.RB.map((player, idx) => {
+                  const logo = getTeamLogo(player);
+                  return (
+                    <li key={`RB-${idx}`} className="mb-1 last:mb-0 border border-green-300 rounded px-2 py-1 flex items-center">
+                      {logo && (
+                        <img src={logo} className="team-logo" onError={e => (e.target.style.display = 'none')} />
+                      )}
+                      <span>{player}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+            {/* Wide Receiver Group */}
+            <div className="p-4 flex-1">
+              <h3 className="text-sm font-bold text-gray-700 mb-2">
+                <span className="inline-block bg-amber-100 text-amber-800 text-xs font-semibold px-2 py-0.5 rounded">WR</span>
+                <span className="ml-2">: {players.WR.length}</span>
+              </h3>
+              <ul className="text-sm text-gray-900">
+                {players.WR.map((player, idx) => {
+                  const logo = getTeamLogo(player);
+                  return (
+                    <li key={`WR-${idx}`} className="mb-1 last:mb-0 border border-amber-300 rounded px-2 py-1 flex items-center">
+                      {logo && (
+                        <img src={logo} className="team-logo" onError={e => (e.target.style.display = 'none')} />
+                      )}
+                      <span>{player}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+            {/* Tight End Group */}
+            <div className="p-4 flex-1">
+              <h3 className="text-sm font-bold text-gray-700 mb-2">
+                <span className="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-0.5 rounded">TE</span>
+                <span className="ml-2">: {players.TE.length}</span>
+              </h3>
+              <ul className="text-sm text-gray-900">
+                {players.TE.map((player, idx) => {
+                  const logo = getTeamLogo(player);
+                  return (
+                    <li key={`TE-${idx}`} className="mb-1 last:mb-0 border border-blue-300 rounded px-2 py-1 flex items-center">
+                      {logo && (
+                        <img src={logo} className="team-logo" onError={e => (e.target.style.display = 'none')} />
+                      )}
+                      <span>{player}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </div>
+          <div className="flex justify-center space-x-2 mt-4">
+            <button className="flex items-center justify-center bg-green-600 text-white text-xs font-medium px-2 py-1 rounded hover:bg-green-700 active:bg-green-800 transition-colors duration-200">
+              <span className="mr-1">👍</span>
+              Yes
+            </button>
+            <button className="flex items-center justify-center bg-red-600 text-white text-xs font-medium px-2 py-1 rounded hover:bg-red-700 active:bg-red-800 transition-colors duration-200">
+              <span className="mr-1">👎</span>
+              No
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-gray-600 text-center">
+            ✅ {yesVotes} ({yesPercent}%) | ❌ {noVotes} ({noPercent}%)
+          </p>
+        </div>
+      );
+    };
+
+    const sheetId = '1rNouBdE-HbWafu-shO_5JLPSrLhr-xuGpXYfyOI-2oY';
+    const rankingsUrl = `https://opensheet.elk.sh/${sheetId}/Rankings`;
+
+    async function loadTeams() {
+      try {
+        const rows = await fetch(rankingsUrl).then(res => res.json());
+        rows.forEach(r => {
+          const player = r.Player || r.player;
+          const team = r.Team || r.team;
+          if (player && team) {
+            playerTeamMap[canonicalName(player)] = team;
+          }
+        });
+      } catch (err) {
+        console.error('Error loading team data:', err);
+      }
+    }
+
+    const demoTeam = {
+      name: 'Demo Team',
+      players: {
+        QB: ['Patrick Mahomes', 'Jalen Hurts', 'Lamar Jackson'],
+        RB: [
+          'Christian McCaffrey',
+          'Austin Ekeler',
+          'Bijan Robinson',
+          'Saquon Barkley',
+          'Jonathan Taylor',
+          'Nick Chubb'
+        ],
+        WR: [
+          'Justin Jefferson',
+          "Ja'Marr Chase",
+          'Cooper Kupp',
+          'Tyreek Hill',
+          'Stefon Diggs',
+          'A.J. Brown',
+          'CeeDee Lamb',
+          'Davante Adams'
+        ],
+        TE: ['Travis Kelce', 'Mark Andrews']
+      },
+      yesVotes: 10,
+      noVotes: 3
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('app'));
+
+    loadTeams().then(() => {
+      root.render(<TeamVotingCard team={demoTeam} />);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,342 @@
+:root {
+  /* brand blues taken from existing sliders & buttons */
+  --bb-blue-500:#1E88E5;
+  --bb-blue-600:#1565C0;
+  --bb-blue-50 :#E3F2FD;
+
+  /* golden-yellow used for the “Rating” column */
+  --bb-gold-200:#FFF8DC;
+  --bb-gold-300:#FFF2B3;
+
+  /* neutrals */
+  --bb-bg       :#F8FAFC;
+  --bb-surface  :#FFFFFF;
+  --bb-border   :#E2E8F0;
+  --bb-text     :#111827; /* nearly black */
+  --bb-muted    :#6B7280;
+  --bb-shadow   :0 2px 6px rgba(0,0,0,.06);
+
+  /* utility colors for position dots */
+  --qb:#FF9800;
+  --rb:#E53935;
+  --wr:#43A047;
+  --te:#8E24AA;
+
+  --radius:6px;
+  --transition:.18s ease;
+  font-family:'Inter',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  box-sizing:border-box;
+}
+
+*,*:before,*:after{box-sizing:inherit;}
+
+/* Center a card on page */
+#upload-container{
+  max-width:420px;
+  margin:96px auto;
+  padding:48px 40px;
+  background:var(--bb-surface);
+  border:1px solid var(--bb-blue-50);
+  border-radius:var(--radius);
+  box-shadow:var(--bb-shadow);
+  text-align:center;
+}
+#upload-container h1{
+  margin:0 0 24px;
+  font-size:26px;
+  font-weight:700;
+  color:var(--bb-text);
+}
+input[type=file]{display:none;}
+label.upload-btn{
+  background:var(--bb-blue-500);
+  color:#fff;
+  display:inline-block;
+  padding:12px 22px;
+  border-radius:var(--radius);
+  font-weight:600;
+  cursor:pointer;
+  transition:var(--transition);
+}
+label.upload-btn:hover{background:var(--bb-blue-600);}
+button.upload-btn{
+  background:var(--bb-blue-500);
+  color:#fff;
+  padding:12px 22px;
+  border:none;
+  border-radius:var(--radius);
+  font-weight:600;
+  cursor:pointer;
+  transition:var(--transition);
+}
+/* Ensure Upload More and Clear Lineups buttons match in size */
+label.upload-btn,
+button.upload-btn{
+  min-width:170px;
+  text-align:center;
+  font-size:16px;
+}
+button.upload-btn:hover{background:var(--bb-blue-600);}
+#clear-lineups{margin-left:12px;}
+
+/* Compact upload button after CSVs uploaded */
+#upload-container.uploaded{
+  position:static;
+  margin:0;
+  padding:0;
+  background:none;
+  border:none;
+  box-shadow:none;
+  text-align:left;
+}
+#upload-container.uploaded h1{display:none;}
+
+/* File upload rows */
+.upload-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:12px;
+}
+label.browse-btn{
+  background:var(--bb-blue-500);
+  color:#fff;
+  display:inline-block;
+  padding:6px 12px;
+  border-radius:var(--radius);
+  font-weight:600;
+  cursor:pointer;
+  transition:var(--transition);
+}
+label.browse-btn:hover{background:var(--bb-blue-600);}
+.status{font-weight:600;}
+.status.success{color:green;}
+.status.error{color:red;}
+
+/* Create a responsive masonry-like grid for each draft card */
+#portfolio-wrapper{
+  display:block;
+}
+
+/* Display lineup cards in a centered responsive grid */
+#teams{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(520px,1fr));
+  gap:32px;
+  margin:56px auto;
+  padding:0 32px;
+  max-width:1880px;
+  align-items:start;
+  justify-content:center;
+}
+
+/* Draft card styling */
+
+.draft-card{
+  background:var(--bb-surface);
+  border:2px solid var(--bb-blue-500);
+  border-radius:var(--radius);
+  box-shadow:var(--bb-shadow);
+  padding:20px 18px;
+  font-size:1.1em;
+
+  overflow-x:auto;
+}
+.draft-card h2{
+  margin:0 0 12px;
+  font-size:20px;
+  color:var(--bb-blue-600);
+  font-weight:700;
+  min-height:44px;
+}
+.draft-card h2 img.icon{
+  width:0.6em;
+  height:0.6em;
+  margin-right:.3em;
+  vertical-align:middle;
+}
+.rating-pill{
+  display:inline-block;
+  margin-left:8px;
+  padding:2px 10px;
+  border-radius:9999px;
+  font-weight:600;
+  font-size:16px;
+}
+.rating-emojis{
+  margin-left:6px;
+  font-size:24px;
+}
+
+/* Team logos */
+.team-logo{
+  width:30px;
+  height:30px;
+  object-fit:contain;
+  margin-right:8px;
+  vertical-align:middle;
+}
+
+/* Team summary row */
+.team-summary{
+  display:inline-flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:8px;
+  margin-bottom:8px;
+}
+.team-count{
+  display:inline-flex;
+  align-items:center;
+  font-weight:600;
+}
+
+/* Label above the team exposure summary */
+.summary-label{
+  display:block;
+  font-size:14px;
+  font-weight:600;
+  color:var(--bb-muted);
+  margin-bottom:4px;
+}
+
+/* Player tables */
+.player-table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:17px;
+  table-layout:fixed;
+}
+.player-table th,
+.player-table td{
+  word-break:break-word;
+}
+.player-table th:nth-child(2),
+.player-table td:nth-child(2){
+  width:45%;
+}
+.player-table thead th{
+  background:var(--bb-blue-500);
+  color:#fff;
+  padding:10px;
+  font-weight:600;
+}
+.player-table tbody tr:nth-child(even){background:var(--bb-blue-50);}
+.player-table tbody tr:hover{background:var(--bb-gold-200);}
+.player-table td{
+  padding:8px 10px;
+  border-bottom:1px solid var(--bb-border);
+}
+
+/* Position color dots */
+.pos-dot{
+  width:8px;height:8px;
+  display:inline-block;
+  border-radius:50%;
+  margin-right:4px;
+}
+td[data-pos="QB"] .pos-dot{background:var(--qb);}
+td[data-pos="RB"] .pos-dot{background:var(--rb);}
+td[data-pos="WR"] .pos-dot{background:var(--wr);}
+td[data-pos="TE"] .pos-dot{background:var(--te);}
+
+/* Modal styles */
+.modal{
+  display:none;
+  position:fixed;
+  top:0;left:0;right:0;bottom:0;
+  background:rgba(0,0,0,0.5);
+  align-items:center;
+  justify-content:center;
+  z-index:1000;
+}
+.modal.show{display:flex;}
+.modal-content{
+  background:var(--bb-surface);
+  padding:20px;
+  border-radius:var(--radius);
+  max-width:400px;
+  width:90%;
+  text-align:center;
+}
+
+/* Format filter section */
+#format-options{
+  display:none;
+  text-align:center;
+  margin:0;
+  justify-self:center;
+}
+#format-options p{
+  margin:0 0 8px;
+  font-size:14px;
+  font-weight:600;
+  color:var(--bb-muted);
+}
+.format-option{
+  display:inline-flex;
+  align-items:center;
+  margin:0 12px;
+  font-weight:600;
+}
+.format-option img.icon{
+  width:0.6em;
+  height:0.6em;
+  margin-right:4px;
+  vertical-align:middle;
+}
+
+/* Container for format checkboxes and date filter */
+#portfolio-controls{
+  display:block;
+  margin-top:20px;
+  padding:0 32px;
+}
+#portfolio-controls.with-uploads{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  grid-template-rows:auto auto;
+  align-items:start;
+  gap:16px;
+}
+
+#date-filter{
+  display:none;
+  font-weight:600;
+  margin:0;
+  justify-self:end;
+}
+#date-filter label{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+#date-filter input[type="date"]{
+  padding:4px;
+  font-family:inherit;
+}
+
+#sort-control{
+  display:none;
+  font-weight:600;
+  margin:0;
+  justify-self:end;
+  grid-column:3;
+  grid-row:2;
+}
+#sort-control label{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+#sort-toggle{
+  padding:4px 8px;
+  font-family:inherit;
+  background:var(--bb-blue-500);
+  color:#fff;
+  border:none;
+  border-radius:var(--radius);
+  cursor:pointer;
+  transition:var(--transition);
+}
+#sort-toggle:hover{background:var(--bb-blue-600);}
